@@ -1,0 +1,96 @@
+#=================================================
+#   Description: Build OpenWrt using GitHub Actions
+#   Lisence: MIT
+#   Author: P3TERX
+#   Blog: https://p3terx.com
+#=================================================
+
+name: 编译R619AC
+
+on: 
+  release:
+    types: [published]
+  push:
+    branches: 
+      - master
+#  schedule:
+#    - cron: 0 8 * * 5
+#  watch:
+#    types: [started]
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: 安装编译环境
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        docker rmi `docker images -q`
+        echo "Deleting files, please wait ..."
+        sudo rm -rf \
+          /usr/share/dotnet \
+          /etc/mysql \
+          /etc/php
+        sudo -E apt-get -y purge \
+          azure-cli \
+          ghc* \
+          zulu* \
+          hhvm \
+          llvm* \
+          firefox \
+          google* \
+          dotnet* \
+          powershell \
+          openjdk* \
+          mysql* \
+          php*
+        sudo -E apt-get update
+        sudo apt-get -y install build-essential asciidoc binutils bzip2 curl gawk gettext git libncurses5-dev libz-dev patch python3.5 python2.7 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler g++-multilib antlr3 gperf
+        sudo -E apt-get -y autoremove --purge
+        sudo -E apt-get clean
+
+    - name: 下载源码
+      run: |
+        git clone -b 19.07 --single-branch https://github.com/Lienol/openwrt openwrt
+        cd openwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: 加载自定义配置
+      run: |
+        ln -sf packages openwrt/package/diy-packages
+        ln -sf files openwrt/files
+        chmod +x diy.sh
+        [ -e ".config" ] && cp .config openwrt
+        cd openwrt
+        ../diy.sh
+        make defconfig
+
+    - name: 下载DL包
+      run: |
+        cd openwrt && make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+#    - name: 编译中
+#      run: |
+#        cd openwrt
+#        echo -e "$(nproc) thread build."
+#        make -j$(nproc) V=s
+
+#    - name : 上传固件
+#      uses: actions/upload-artifact@master
+#      with:
+#        name: R619AC
+#        path: openwrt/bin/targets/ipq40xx/generic/openwrt-ipq40xx-p2w_r619ac-squashfs-nand-sysupgrade.bin
+
+    - name : 上传DL
+      uses: actions/upload-artifact@master
+      with:
+        name: dl
+        path: openwrt/dl
