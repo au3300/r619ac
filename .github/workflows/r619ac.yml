@@ -56,7 +56,7 @@ jobs:
 
     - name: 下载源码
       run: |
-        git clone https://github.com/coolsnowwolf/openwrt openwrt
+        git clone -b lede-17.01 --single-branch https://github.com/coolsnowwolf/openwrt openwrt
         cd openwrt
         ./scripts/feeds update -a
         ./scripts/feeds install -a
